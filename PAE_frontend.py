@@ -25,6 +25,9 @@ st.markdown("""
 if 'data_source' not in st.session_state:
     st.session_state.data_source = "Simulation"
 
+if 'is_running' not in st.session_state:
+    st.session_state.is_running = False
+
 # --- Sidebar Controls ---
 with st.sidebar:
     st.title("🧳 OmniTrack")
