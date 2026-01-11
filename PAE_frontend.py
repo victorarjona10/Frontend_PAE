@@ -22,31 +22,69 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- State Management ---
-if 'simulation' not in st.session_state:
-    st.session_state.simulation = SimulationEngine(num_bags=100)
-    st.session_state.is_running = False
+if 'data_source' not in st.session_state:
+    st.session_state.data_source = "Simulation"
 
 # --- Sidebar Controls ---
 with st.sidebar:
     st.title("🧳 OmniTrack")
     
-    # Simulation Control
-    st.subheader("Simulation Controls")
-    st.caption("Press Start to begin real-time tracking updates.")
+    # Mode Selection
+    source_option = st.radio(
+        "Data Source", 
+        ["Simulation", "Real Backend API"],
+        index=0 if st.session_state.data_source == "Simulation" else 1
+    )
     
-    col_play, col_tick = st.columns(2)
-    
-    with col_play:
-        run_label = "⏸ Pause" if st.session_state.is_running else "▶ Start Live"
-        if st.button(run_label):
-            st.session_state.is_running = not st.session_state.is_running
-    
-    with col_tick:
-        if st.button("Step +1"):
+    # Handle Mode Switching
+    if source_option != st.session_state.data_source:
+        st.session_state.data_source = source_option
+        st.session_state.is_running = False # Stop running on switch
+        
+        # Re-initialize the correct service
+        if source_option == "Simulation":
+            st.session_state.simulation = SimulationEngine(num_bags=100)
+        else:
+            # Lazy import to avoid circular defaults
+            from services.api_service import RealTimeService 
+            st.session_state.simulation = RealTimeService()
+        st.rerun()
+
+    # Initialize generic 'service' wrapper if not present (handled by re-init above generally, but for first load):
+    if 'simulation' not in st.session_state:
+        st.session_state.simulation = SimulationEngine(num_bags=100)
+
+    # Dynamic Controls based on Mode
+    if st.session_state.data_source == "Simulation":
+        st.subheader("Simulation Controls")
+        st.caption("Press Start to begin real-time tracking updates.")
+        
+        col_play, col_tick = st.columns(2)
+        
+        with col_play:
+            run_label = "⏸ Pause" if st.session_state.is_running else "▶ Start Live"
+            if st.button(run_label):
+                st.session_state.is_running = not st.session_state.is_running
+        
+        with col_tick:
+            if st.button("Step +1"):
+                st.session_state.simulation.tick()
+                
+        # Show current simulation tick/time
+        st.metric("Simulation Ticks", len(st.session_state.simulation.bags[0].history) if st.session_state.simulation.bags else 0)
+
+    else:
+        st.subheader("API Connection")
+        st.warning("📡 Connecting to http://localhost:8000...")
+        if st.button("🔄 Fetch Live Data"):
             st.session_state.simulation.tick()
-            
-    # Show current simulation tick/time
-    st.metric("Simulation Ticks", len(st.session_state.simulation.bags[0].history) if st.session_state.simulation.bags else 0)
+        
+        # Auto-refresh toggle for API
+        auto_refresh = st.checkbox("Auto-polling (5s)", value=False)
+        if auto_refresh:
+            st.session_state.is_running = True
+        else:
+            st.session_state.is_running = False
 
     
     st.divider()
