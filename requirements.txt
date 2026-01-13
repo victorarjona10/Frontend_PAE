@@ -2,3 +2,8 @@ streamlit
 pandas
 pydeck
 numpy
+altair
+requests
+websocket-client
+streamlit-autorefresh
+colorama
