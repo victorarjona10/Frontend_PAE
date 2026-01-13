@@ -4,6 +4,10 @@ from services.simulation import SimulationEngine, BagStatus
 from components.map_view import render_map
 from components.metrics import render_metrics
 from components.bag_details import render_bag_details
+from components.analytics import render_analytics
+from components.auth import render_login
+from components.notifications import check_notifications, render_notification_center
+import pandas as pd
 
 # --- Page Config ---
 st.set_page_config(
@@ -22,11 +26,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- State Management ---
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = None
+
 if 'data_source' not in st.session_state:
     st.session_state.data_source = "Simulation"
 
 if 'is_running' not in st.session_state:
     st.session_state.is_running = False
+
+if 'stats_history' not in st.session_state:
+    st.session_state.stats_history = []
+
+def capture_stats():
+    """Captures current simulation state for analytics history."""
+    df = st.session_state.simulation.get_dataframe()
+    tick_time = len(st.session_state.stats_history)
+    
+    stats = {
+        'timestamp': tick_time,
+        'Total Active': len(df),
+        'In Transit': len(df[df['status'] == 'In Transit']),
+        'Landed': len(df[df['status'].isin(['Landed', 'Baggage Claim'])]),
+        'Lost': len(df[df['status'] == 'Lost'])
+    }
+    st.session_state.stats_history.append(stats)
+    
+    # Check for notifications
+    check_notifications(st.session_state.simulation.bags)
+
+# --- Auth Check ---
+if st.session_state.user_role is None:
+    render_login()
+    st.stop()
 
 # --- Sidebar Controls ---
 with st.sidebar:
@@ -72,6 +104,7 @@ with st.sidebar:
         with col_tick:
             if st.button("Step +1"):
                 st.session_state.simulation.tick()
+                capture_stats()
                 
         # Show current simulation tick/time
         st.metric("Simulation Ticks", len(st.session_state.simulation.bags[0].history) if st.session_state.simulation.bags else 0)
@@ -81,6 +114,7 @@ with st.sidebar:
         st.warning("📡 Connecting to http://localhost:8000...")
         if st.button("🔄 Fetch Live Data"):
             st.session_state.simulation.tick()
+            capture_stats()
         
         # Auto-refresh toggle for API
         auto_refresh = st.checkbox("Auto-polling (5s)", value=False)
@@ -91,6 +125,10 @@ with st.sidebar:
 
     
     st.divider()
+    
+    # Map Settings
+    st.subheader("Map Settings")
+    show_heatmap = st.checkbox("Show Heatmap", value=False)
     
     # Filters
     st.subheader("Filters")
@@ -106,20 +144,54 @@ with st.sidebar:
     search_id = st.selectbox("Select Bag ID", ["None"] + all_bag_ids)
 
 # --- Auto-Run Logic ---
-if st.session_state.is_running:
+    st.divider()
+    
+    # User Profile / Logout
+    if st.session_state.user_role == 'passenger':
+        st.caption(f"Logged in as Passenger (Tracking {st.session_state.target_bag_id})")
+    else:
+        st.caption("Logged in as Administrator")
+        
+    if st.button("Log Out"):
+        st.session_state.user_role = None
+        st.session_state.target_bag_id = None
+        st.rerun()
+
+    st.divider()
+    # Notification Center (Admin Only)
+    if st.session_state.user_role == 'admin':
+        render_notification_center()
+
+# --- Auto-Run Logic (Only for Admin) ---
+if st.session_state.user_role == 'admin' and st.session_state.is_running:
     st.session_state.simulation.tick()
+    capture_stats()
     time.sleep(0.5) # Throttle speed
     st.rerun()
 
 # --- Main Layout ---
-st.title("🌍 Global Luggage Operations")
+if st.session_state.user_role == 'passenger':
+    st.title(f"🧳 My Luggage Tracker")
+else:
+    st.title("🌍 Global Luggage Operations")
 
 # Data preparation
+# Data preparation
 df_bags = st.session_state.simulation.get_dataframe()
-filtered_df = df_bags[df_bags['status'].isin(status_filter)]
 
-# 1. Top Level Metrics
-render_metrics(filtered_df)
+# Apply Passenger Constraints
+if st.session_state.user_role == 'passenger':
+    target_id = st.session_state.get('target_bag_id')
+    # Force filter to only this bag
+    filtered_df = df_bags[df_bags['id'] == target_id]
+    search_id = target_id 
+    # Hide sidebar filters effectively for passenger (or ignore them)
+else:
+    filtered_df = df_bags[df_bags['status'].isin(status_filter)]
+
+# 1. Top Level Metrics (Admin Only)
+if st.session_state.user_role == 'admin':
+    render_metrics(filtered_df)
 
 st.write("") # Spacer
 
@@ -127,24 +199,37 @@ st.write("") # Spacer
 # Highlight selected bag if any
 if search_id != "None":
     selected_bag_data = df_bags[df_bags['id'] == search_id]
-    # We could zoom to it, but for now let's just show it filter-wise or highlight
-    # Let's filter the map to show only relevant or all? 
-    # Better to show all but highlight. For now, let's keep showing all but use the search below.
 
-render_map(filtered_df)
+# --- Tabs Layout ---
+# --- Tabs Layout ---
+if st.session_state.user_role == 'admin':
+    tab_map, tab_analytics, tab_data = st.tabs(["🗺️ Live Map", "📈 Analytics", "📂 Raw Data"])
+    
+    with tab_map:
+        render_map(filtered_df, show_heatmap=show_heatmap)
+        
+        # 3. Drill Down / Details
+        if search_id != "None":
+            bag = next((b for b in st.session_state.simulation.bags if b.id == search_id), None)
+            if bag:
+                render_bag_details(bag)
+            else:
+                st.error("Bag not found!")
 
-# 3. Drill Down / Details
-if search_id != "None":
-    # Find the bag object
-    bag = next((b for b in st.session_state.simulation.bags if b.id == search_id), None)
-    if bag:
-        render_bag_details(bag)
-    else:
-        st.error("Bag not found!")
-elif len(filtered_df) > 0 and len(filtered_df) < 5:
-    # If filtered to a few, show details for first one
-    st.info("Select a bag from the sidebar to view full history.")
+    with tab_analytics:
+        history_df = pd.DataFrame(st.session_state.stats_history)
+        render_analytics(df_bags, history_df)
 
-# 4. Raw Data Expander
-with st.expander("📂 Raw Data Log"):
-    st.dataframe(filtered_df, use_container_width=True)
+    with tab_data:
+        st.dataframe(filtered_df, use_container_width=True)
+
+else:
+    # PASSENGER VIEW (Simplified)
+    render_map(filtered_df, show_heatmap=False)
+    
+    if search_id:
+        bag = next((b for b in st.session_state.simulation.bags if b.id == search_id), None)
+        if bag:
+            render_bag_details(bag)
+        else:
+            st.warning("We are currently unable to locate your bag. It might not be in the system yet.")

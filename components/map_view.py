@@ -2,7 +2,7 @@ import streamlit as st
 import pydeck as pdk
 import pandas as pd
 
-def render_map(df: pd.DataFrame):
+def render_map(df: pd.DataFrame, show_heatmap: bool = False):
     """Renders the main map visualization using Pydeck."""
     
     # 1. View State
@@ -14,7 +14,20 @@ def render_map(df: pd.DataFrame):
     )
 
     # 2. Layers
+    layers = []
     
+    # Heatmap Layer (Optional)
+    if show_heatmap:
+        heatmap_layer = pdk.Layer(
+            "HeatmapLayer",
+            data=df,
+            get_position=["lon", "lat"],
+            opacity=0.4,
+            get_weight=1,
+            radius_pixels=50,
+        )
+        layers.append(heatmap_layer)
+
     # Bag Scatter Layer
     scatter_layer = pdk.Layer(
         "ScatterplotLayer",
@@ -31,6 +44,7 @@ def render_map(df: pd.DataFrame):
         filled=True,
         line_width_min_pixels=1,
     )
+    layers.append(scatter_layer)
     
     # Flight Arcs (Only for IN_TRANSIT)
     in_transit = df[df['status'] == 'In Transit']
@@ -44,6 +58,7 @@ def render_map(df: pd.DataFrame):
         get_width=2,
         pickable=True,
     )
+    layers.append(arc_layer)
 
     # 3. Tooltip
     tooltip = {
@@ -63,7 +78,7 @@ def render_map(df: pd.DataFrame):
     r = pdk.Deck(
         map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
         initial_view_state=view_state,
-        layers=[arc_layer, scatter_layer],
+        layers=layers,
         tooltip=tooltip
     )
 
