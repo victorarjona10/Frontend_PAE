@@ -5,17 +5,22 @@ from typing import List, Dict
 from .models import Bag, Airport, BagStatus
 
 # Configuration
+# Verified Coordinates (Lat, Lon)
 AIRPORTS = {
     "JFK": Airport("JFK", "New York JFK", 40.6413, -73.7781),
     "LHR": Airport("LHR", "London Heathrow", 51.4700, -0.4543),
+    "DUB": Airport("DUB", "Dublin Airport", 53.4264, -6.2499),        # Ireland
     "HND": Airport("HND", "Tokyo Haneda", 35.5494, 139.7798),
-    "DXB": Airport("DXB", "Dubai Intl", 25.2532, 55.3657),
+    "DXB": Airport("DXB", "Dubai Intl", 25.2532, 55.3657),            # UAE
     "CDG": Airport("CDG", "Paris Charles de Gaulle", 49.0097, 2.5479),
     "SIN": Airport("SIN", "Singapore Changi", 1.3644, 103.9915),
     "SYD": Airport("SYD", "Sydney Kingsford Smith", -33.9399, 151.1753),
-    "BCN": Airport("BCN", "Barcelona El Prat", 41.2974, 2.0833),
+    "BCN": Airport("BCN", "Barcelona El Prat", 41.2974, 2.0833),      # Spain
     "LAX": Airport("LAX", "Los Angeles Intl", 33.9416, -118.4085),
     "GRU": Airport("GRU", "São Paulo Guarulhos", -23.4356, -46.4731),
+    "HKG": Airport("HKG", "Hong Kong Intl", 22.3080, 113.9185),       # Added for Asia coverage
+    "FRA": Airport("FRA", "Frankfurt Airport", 50.0379, 8.5622),      # Added for EU coverage
+    "FCO": Airport("FCO", "Rome Fiumicino", 41.7999, 12.2462),        # Added for Med coverage
 }
 
 STATUS_COLORS = {
