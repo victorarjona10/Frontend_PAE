@@ -9,6 +9,7 @@ from components.analytics import render_analytics
 from components.auth import render_login
 from components.ml_prediction import render_ml_prediction
 from components.notifications import check_notifications, render_notification_center
+from components.passenger_view import render_passenger_bag_details
 import pandas as pd
 
 # --- Page Config ---
@@ -261,12 +262,13 @@ if st.session_state.user_role == 'admin':
         st.dataframe(filtered_df, use_container_width=True)
 
 else:
-    # PASSENGER VIEW (Simplified)
+    # PASSENGER VIEW (Enhanced)
     render_map(filtered_df, show_heatmap=False)
 
     if search_id:
         bag = next((b for b in st.session_state.simulation.bags if b.id == search_id), None)
         if bag:
-            render_bag_details(bag)
+            # Use enhanced passenger view
+            render_passenger_bag_details(bag, st.session_state.simulation)
         else:
             st.warning("We are currently unable to locate your bag. It might not be in the system yet.")

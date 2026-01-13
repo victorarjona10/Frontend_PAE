@@ -15,7 +15,7 @@ python test_integration.py
 
 ### Paso 3: Iniciar Aplicación
 ```bash
-streamlit run PAE_frontend.py
+
 # O usar: ./start.sh
 ```
 

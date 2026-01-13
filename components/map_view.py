@@ -4,7 +4,7 @@ import pandas as pd
 
 def render_map(df: pd.DataFrame, show_heatmap: bool = False):
     """Renders the main map visualization using Pydeck."""
-    
+
     # 1. View State
     view_state = pdk.ViewState(
         latitude=20.0,
@@ -15,7 +15,7 @@ def render_map(df: pd.DataFrame, show_heatmap: bool = False):
 
     # 2. Layers
     layers = []
-    
+
     # Heatmap Layer (Optional)
     if show_heatmap:
         heatmap_layer = pdk.Layer(
@@ -34,7 +34,7 @@ def render_map(df: pd.DataFrame, show_heatmap: bool = False):
         df,
         get_position=["lon", "lat"],
         get_color="color",
-        get_radius="size_scale", 
+        get_radius="size_scale",
         radius_scale=500, # Base scale
         radius_min_pixels=3,
         radius_max_pixels=15,
@@ -45,20 +45,22 @@ def render_map(df: pd.DataFrame, show_heatmap: bool = False):
         line_width_min_pixels=1,
     )
     layers.append(scatter_layer)
-    
-    # Flight Arcs (Only for IN_TRANSIT)
-    in_transit = df[df['status'] == 'In Transit']
-    arc_layer = pdk.Layer(
-        "ArcLayer",
-        data=in_transit,
-        get_source_position=["lon", "lat"],
-        get_target_position=["dest_lon", "dest_lat"],
-        get_source_color=[0, 191, 255, 150],
-        get_target_color=[255, 255, 255, 100],
-        get_width=2,
-        pickable=True,
-    )
-    layers.append(arc_layer)
+
+    # Flight Arcs (for bags in transit)
+    # Check for multiple possible status values
+    in_transit = df[df['status'].isin(['In Transit', 'IN_TRANSIT', 'In Flight'])]
+    if len(in_transit) > 0:
+        arc_layer = pdk.Layer(
+            "ArcLayer",
+            data=in_transit,
+            get_source_position=["lon", "lat"],
+            get_target_position=["dest_lon", "dest_lat"],
+            get_source_color=[0, 191, 255, 150],
+            get_target_color=[255, 255, 255, 100],
+            get_width=2,
+            pickable=True,
+        )
+        layers.append(arc_layer)
 
     # 3. Tooltip
     tooltip = {

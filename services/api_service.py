@@ -110,15 +110,17 @@ class RealTimeService:
         """
         self._fetch_all_bags()
 
-    def fetch_bags_for_passenger(self, bag_id: str):
+    def fetch_bags_for_passenger(self, bag_id: str) -> str:
         """
         Fetch a specific bag for a passenger.
         If bag_id doesn't exist, fetch all bags and filter or show first available.
+        Returns the actual bag_id that was loaded.
         """
         bag_details = self.get_bag_details(bag_id)
         if bag_details:
             # Convert single bag to list
             self.bags = self._parse_bags_from_api([bag_details])
+            return self.bags[0].id if self.bags else None
         else:
             # Bag not found - fallback: fetch all bags and try to find it
             print(f"⚠️ Bag {bag_id} not found via details endpoint, fetching all bags...")
@@ -128,14 +130,18 @@ class RealTimeService:
             if matching_bags:
                 self.bags = matching_bags
                 print(f"✅ Found bag {bag_id} in list")
+                return matching_bags[0].id
             else:
                 # Still not found - use first bag as demo or keep all bags
                 if self.bags:
                     print(f"⚠️ Bag {bag_id} not found. Showing first available bag as demo.")
+                    actual_bag_id = self.bags[0].id
                     self.bags = [self.bags[0]]
+                    return actual_bag_id
                 else:
                     print(f"❌ No bags available")
                     self.bags = []
+                    return None
 
     def _fetch_all_bags(self, status: Optional[str] = None, owner_id: Optional[str] = None, limit: int = 100):
         """
@@ -209,6 +215,50 @@ class RealTimeService:
         except Exception as e:
             return {"error": str(e)}
         return {}
+
+    def report_bag_issue(self, bag_id: str, report_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Report a bag issue (lost, delayed, damaged, misplaced).
+
+        Args:
+            bag_id: ID of the bag to report
+            report_data: {
+                "report_type": "LOST" | "DELAYED" | "DAMAGED" | "MISPLACED",
+                "current_location": str,
+                "expected_location": str,
+                "timestamp": str (ISO format),
+                "description": str,
+                "passenger_location_lat": float,
+                "passenger_location_lon": float
+            }
+
+        Returns:
+            {
+                "report_id": str,
+                "bag_id": str,
+                "status": str,
+                "prediction": {
+                    "loss_probability": float,
+                    "risk_level": str,
+                    "estimated_cause": str,
+                    "recommendations": [str]
+                },
+                "created_at": str
+            }
+        """
+        try:
+            response = requests.post(
+                f"{API_BASE_URL}/api/bags/{bag_id}/report",
+                json=report_data,
+                headers=self._get_headers(),
+                timeout=5
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"error": f"HTTP {response.status_code}: {response.text}"}
+        except Exception as e:
+            return {"error": str(e)}
 
     # ==================== MACHINE LEARNING ====================
 

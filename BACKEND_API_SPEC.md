@@ -97,6 +97,52 @@ Used by physical scanners to update bag status.
     }
     ```
 
+### **POST** `/api/bags/{id}/report`
+Allows passengers to report issues with their bags (lost, delayed, damaged, misplaced).
+
+*   **Headers**: `Authorization: Bearer <JWT_TOKEN>`
+*   **Request Body**:
+    ```json
+    {
+      "report_type": "LOST",
+      "current_location": "Terminal 3, Gate B12",
+      "expected_location": "Baggage Claim Area 2",
+      "timestamp": "2026-01-13T20:30:00Z",
+      "description": "My bag should be at baggage claim but it's not here",
+      "passenger_location_lat": 40.6413,
+      "passenger_location_lon": -73.7781
+    }
+    ```
+*   **Response (200 OK)**:
+    ```json
+    {
+      "report_id": "RPT-12345",
+      "bag_id": "BAG-1001",
+      "status": "REPORTED",
+      "prediction": {
+        "loss_probability": 0.45,
+        "risk_level": "MEDIUM",
+        "estimated_cause": "Transfer delay",
+        "recommendations": [
+          "Contact airline staff at baggage claim desk",
+          "Check delayed baggage area",
+          "Your bag may arrive on next flight in 2 hours"
+        ]
+      },
+      "created_at": "2026-01-13T20:30:15Z"
+    }
+    ```
+
+---
+    {
+      "bag_id": "BAG-1001",
+      "scanner_id": "GATE-G12-JFK",
+      "status": "AT_GATE",
+      "lat": 40.6415,
+      "lon": -73.7785
+    }
+    ```
+
 ---
 
 ## 3. Analytics & Reporting

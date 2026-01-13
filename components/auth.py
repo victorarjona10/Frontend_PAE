@@ -79,11 +79,15 @@ def _render_api_login(api_service):
                             st.success(f"✅ Bienvenido, {user_id}!")
                         elif role == "PASSENGER":
                             st.session_state.user_role = 'passenger'
-                            st.session_state.target_bag_id = target_bag_id
                             st.session_state.user_id = user_id
-                            # Fetch passenger's specific bag
-                            api_service.fetch_bags_for_passenger(target_bag_id)
-                            st.success(f"✅ Bienvenido! Rastreando maleta: {target_bag_id}")
+                            # Fetch passenger's specific bag and get the actual ID
+                            actual_bag_id = api_service.fetch_bags_for_passenger(target_bag_id)
+                            if actual_bag_id:
+                                st.session_state.target_bag_id = actual_bag_id
+                                st.success(f"✅ Bienvenido! Rastreando maleta: {actual_bag_id}")
+                            else:
+                                st.session_state.target_bag_id = None
+                                st.warning(f"⚠️ No se pudo cargar la maleta {target_bag_id}")
 
                         st.rerun()
 
